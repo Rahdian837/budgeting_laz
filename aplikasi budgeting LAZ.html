@@ -1,0 +1,2259 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Budgeting LAZ Albahjah</title>
+    <!-- 1. Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 2. Supabase Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- 3. Chart.js (Untuk Dashboard) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- 4. jsPDF & jsPDF-AutoTable (Untuk Export PDF) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+    <!-- 5. PapaParse (Untuk Export CSV) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <!-- 6. Font Awesome (Untuk Ikon) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+    <!-- 7. Google Font (Inter) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Mengatur agar sidebar tidak ter-print */
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #printableArea, #printableArea * {
+                visibility: visible;
+            }
+            #printableArea {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+            }
+            #sidebar, #header, .no-print {
+                display: none;
+            }
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #a8a8a8;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #888;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+
+    <!-- ===== VIEW LOGIN ===== -->
+    <div id="loginView" class="flex items-center justify-center min-h-screen bg-gray-50">
+        <div class="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md">
+            <h2 id="authTitle" class="text-2xl font-bold text-center text-gray-900">Login Akun</h2>
+            
+            <!-- Form Login -->
+            <form id="loginForm" class="space-y-6">
+                <div>
+                    <label for="loginEmail" class="block text-sm font-medium text-gray-700">Email</label>
+                    <input id="loginEmail" name="email" type="email" autocomplete="email" required
+                        class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label for="loginPassword" class="block text-sm font-medium text-gray-700">Password</label>
+                    <input id="loginPassword" name="password" type="password" autocomplete="current-password" required
+                        class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <button type="submit"
+                    class="w-full px-4 py-2 font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    Login
+                </button>
+            </form>
+
+            <!-- Form Register (tersembunyi) -->
+            <form id="registerForm" class="hidden space-y-6">
+                 <div>
+                    <label for="registerEmail" class="block text-sm font-medium text-gray-700">Email</label>
+                    <input id="registerEmail" name="email" type="email" autocomplete="email" required
+                        class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label for="registerPassword" class="block text-sm font-medium text-gray-700">Password</label>
+                    <input id="registerPassword" name="password" type="password" autocomplete="new-password" required
+                        class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <button type="submit"
+                    class="w-full px-4 py-2 font-medium text-white bg-green-600 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                    Daftar
+                </button>
+            </form>
+
+            <p class="text-sm text-center text-gray-600">
+                <span id="authToggleText">Belum punya akun?</span>
+                <a href="#" id="authToggleLink" class="font-medium text-blue-600 hover:text-blue-500">
+                    Daftar di sini
+                </a>
+            </p>
+            <p id="authMessage" class="text-sm text-center text-red-500"></p>
+        </div>
+    </div>
+
+    <!-- ===== MODALS ===== -->
+
+    <!-- Modal Loading -->
+    <div id="loadingModal" class="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-50 hidden">
+        <div class="flex flex-col items-center p-6 bg-white rounded-lg shadow-xl">
+            <i class="fas fa-spinner fa-spin text-4xl text-blue-600"></i>
+            <p id="loadingMessage" class="mt-4 text-gray-700">Loading...</p>
+        </div>
+    </div>
+
+    <!-- Modal Pesan/Error -->
+    <div id="messageModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 hidden">
+        <div class="w-full max-w-sm p-6 bg-white rounded-lg shadow-xl">
+            <h4 id="messageTitle" class="text-lg font-bold text-gray-900">Pesan</h4>
+            <p id="messageText" class="mt-2 text-gray-700">Ini adalah pesan.</p>
+            <div class="flex justify-end mt-6">
+                <button type="button" id="messageCloseButton" class="px-4 py-2 font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700">
+                    Tutup
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Konfirmasi Hapus -->
+    <div id="deleteConfirmModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 hidden">
+        <div class="w-full max-w-sm p-6 bg-white rounded-lg shadow-xl">
+            <h4 id="deleteConfirmTitle" class="text-lg font-bold text-red-700">Konfirmasi Hapus</h4>
+            <p id="deleteConfirmText" class="mt-2 text-gray-700">Anda yakin ingin melanjutkan?</p>
+            <div class="flex justify-end space-x-2 mt-6">
+                <button type="button" id="deleteConfirmCancel" class="px-4 py-2 font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300">
+                    Batal
+                </button>
+                <button type="button" id="deleteConfirmButton" class="px-4 py-2 font-medium text-white bg-red-600 rounded-md hover:bg-red-700">
+                    Ya, Hapus
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== VIEW APLIKASI UTAMA (Setelah Login) ===== -->
+    <div id="mainAppView" class="hidden">
+        <!-- Sidebar -->
+        <div id="sidebar" class="fixed inset-y-0 left-0 z-30 w-64 p-4 overflow-y-auto transition-transform duration-300 ease-in-out transform -translate-x-full bg-white shadow-lg md:translate-x-0">
+            <div class="flex items-center justify-between mb-6">
+                 <h2 class="text-2xl font-bold text-blue-700">LAZ Albahjah</h2>
+                 <button id="sidebarClose" class="md:hidden text-gray-600 hover:text-gray-900">
+                     <i class="fas fa-times text-xl"></i>
+                 </button>
+            </div>
+            <nav class="space-y-2">
+                <a href="#" class="nav-link flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-gray-100" data-view="dashboardView">
+                    <i class="w-6 text-center fas fa-chart-pie"></i>
+                    <span class="ml-3">Dashboard</span>
+                </a>
+                <a href="#" class="nav-link flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-gray-100" data-view="masterDataView">
+                    <i class="w-6 text-center fas fa-archive"></i>
+                    <span class="ml-3">Master Item Budget</span>
+                </a>
+                <a href="#" class="nav-link flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-gray-100" data-view="inputDpView">
+                    <i class="w-6 text-center fas fa-file-invoice-dollar"></i>
+                    <span class="ml-3">Input Dana Pengelolaan</span>
+                </a>
+                <a href="#" class="nav-link flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-gray-100" data-view="laporanView">
+                    <i class="w-6 text-center fas fa-file-alt"></i>
+                    <span class="ml-3">Budget vs Realisasi</span>
+                </a>
+                <a href="#" class="nav-link flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-gray-100" data-view="laporanFilterView">
+                    <i class="w-6 text-center fas fa-filter"></i>
+                    <span class="ml-3">Laporan & Export</span>
+                </a>
+                <a href="#" class="nav-link flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-gray-100" data-view="saldoDpView">
+                    <i class="w-6 text-center fas fa-wallet"></i>
+                    <span class="ml-3">Akumulasi Saldo DP</span>
+                </a>
+            </nav>
+        </div>
+
+        <!-- Content Area -->
+        <div class="flex-1 md:ml-64">
+            <!-- Header -->
+            <header id="header" class="sticky top-0 z-20 flex items-center justify-between p-4 bg-white shadow-md">
+                <div class="flex items-center">
+                    <button id="sidebarOpen" class="md:hidden mr-4 text-gray-600 hover:text-gray-900">
+                        <i class="fas fa-bars text-xl"></i>
+                    </button>
+                    <h1 id="pageTitle" class="text-xl font-semibold text-gray-800">Dashboard</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <span id="userEmailDisplay" class="text-sm text-gray-600 hidden md:block">user@email.com</span>
+                    <button id="logoutButton" class="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700">
+                        <i class="fas fa-sign-out-alt mr-1"></i>
+                        Logout
+                    </button>
+                </div>
+            </header>
+
+            <!-- Main Content (Views) -->
+            <main class="p-6">
+                <!-- View: Dashboard -->
+                <div id="dashboardView" class="page-view hidden">
+                    <!-- Filter Dashboard -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 p-4 bg-white rounded-lg shadow no-print">
+                        <div>
+                            <label for="dashboardMonth" class="block text-sm font-medium text-gray-700">Bulan</label>
+                            <select id="dashboardMonth" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"></select>
+                        </div>
+                        <div>
+                            <label for="dashboardYear" class="block text-sm font-medium text-gray-700">Tahun</label>
+                            <select id="dashboardYear" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"></select>
+                        </div>
+                        <div class="self-end">
+                            <button id="loadDashboardButton" class="w-full px-4 py-2 font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700">
+                                <i class="fas fa-sync-alt mr-2"></i>Muat Data
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Ringkasan Kube -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                        <div class="p-6 bg-white rounded-lg shadow-md">
+                            <h4 class="text-sm font-medium text-gray-500">Total Budget</h4>
+                            <p id="dashboardTotalBudget" class="text-3xl font-bold text-gray-900">Rp 0</p>
+                        </div>
+                        <div class="p-6 bg-white rounded-lg shadow-md">
+                            <h4 class="text-sm font-medium text-gray-500">Total Realisasi</h4>
+                            <p id="dashboardTotalRealisasi" class="text-3xl font-bold text-red-600">Rp 0</p>
+                        </div>
+                        <div class="p-6 bg-white rounded-lg shadow-md">
+                            <h4 class="text-sm font-medium text-gray-500">Sisa Anggaran</h4>
+                            <p id="dashboardSisaAnggaran" class="text-3xl font-bold text-green-600">Rp 0</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Charts -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="p-6 bg-white rounded-lg shadow-md">
+                            <h4 class="text-lg font-semibold text-gray-800 mb-4">Grafik Budget vs Realisasi</h4>
+                            <canvas id="budgetRealisasiChart"></canvas>
+                        </div>
+                         <div class="p-6 bg-white rounded-lg shadow-md">
+                            <h4 class="text-lg font-semibold text-gray-800 mb-4">Komposisi Budget Variable</h4>
+                            <canvas id="variableCostChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- View: Akumulasi Saldo DP -->
+                <div id="saldoDpView" class="page-view hidden">
+                    <!-- Ringkasan Saldo -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                        <div class="p-6 bg-white rounded-lg shadow-md">
+                            <h4 class="text-sm font-medium text-gray-500">Saldo Awal Bulan Ini</h4>
+                            <p id="saldoBulanLalu" class="text-3xl font-bold text-gray-900">Rp 0</p>
+                            <p class="text-xs text-gray-500">Total Sisa Budget Agregat s.d. akhir bulan lalu.</p>
+                        </div>
+                        <div class="p-6 bg-white rounded-lg shadow-md">
+                            <h4 class="text-sm font-medium text-gray-500">Total Saldo Saat Ini</h4>
+                            <p id="saldoSaatIni" class="text-3xl font-bold text-blue-600">Rp 0</p>
+                            <p class="text-xs text-gray-500">Total akumulasi saldo dari semua rekening.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <!-- Form Input Saldo -->
+                        <div class="lg:col-span-1">
+                            <div class="bg-white p-6 rounded-lg shadow-md">
+                                <h3 class="text-lg font-semibold text-gray-800 mb-4">Input Saldo/Mutasi DP</h3>
+                                <form id="saldoDpForm" class="space-y-4">
+                                    <div>
+                                        <label for="saldoTanggal" class="block text-sm font-medium text-gray-700">Tanggal</label>
+                                        <input id="saldoTanggal" type="date" required class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                    </div>
+                                    <div>
+                                        <label for="saldoSumber" class="block text-sm font-medium text-gray-700">Sumber Saldo DP</label>
+                                        <select id="saldoSumber" required class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                            <option value="">-- Pilih Sumber --</option>
+                                            <option value="Rekening BMT">Rekening BMT</option>
+                                            <option value="Rekening BSI">Rekening BSI</option>
+                                            <option value="Rekening Danamon Syariah">Rekening Danamon Syariah</option>
+                                            <option value="Rekening CIMB Niaga Syariah">Rekening CIMB Niaga Syariah</option>
+                                            <option value="Rekening Muamalat">Rekening Muamalat</option>
+                                            <option value="Rekening BSN">Rekening BSN</option>
+                                            <option value="Lainnya">Lainnya</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label for="saldoTipe" class="block text-sm font-medium text-gray-700">Tipe Transaksi</label>
+                                        <select id="saldoTipe" required class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                            <option value="masuk">Dana Masuk (Penambah)</option>
+                                            <option value="keluar">Dana Keluar (Pengurang)</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label for="saldoJumlah" class="block text-sm font-medium text-gray-700">Jumlah (Rupiah)</label>
+                                        <input id="saldoJumlah" type="number" step="0.01" min="0" required class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                    </div>
+                                    <div>
+                                        <label for="saldoKeterangan" class="block text-sm font-medium text-gray-700">Keterangan</Slabel>
+                                        <textarea id="saldoKeterangan" rows="3" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"></textarea>
+                                    </div>
+                                    <button type="submit" class="w-full px-4 py-2 font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700">
+                                        Simpan Transaksi
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                        
+                        <!-- Tabel Riwayat Saldo -->
+                        <div class="lg:col-span-2">
+                             <div class="bg-white rounded-lg shadow-md overflow-hidden">
+                                <h3 class="p-4 text-lg font-semibold text-gray-800 border-b">Riwayat Mutasi Saldo DP</h3>
+                                <div class="overflow-x-auto max-h-[600px]">
+                                    <table class="min-w-full divide-y divide-gray-200">
+                                        <thead class="bg-gray-50 sticky top-0">
+                                            <tr>
+                                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal</th>
+                                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sumber</th>
+                                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Keterangan</th>
+                                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mutasi</th>
+                                                <th scope="col" class="relative px-6 py-3 no-print"><span class="sr-only">Aksi</span></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="saldoDpTableBody" class="bg-white divide-y divide-gray-200">
+                                            <!-- Data diisi oleh JS -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ===== BAGIAN HTML YANG HILANG SAYA TAMBAHKAN DI SINI ===== -->
+
+                <!-- View: Master Data -->
+                <div id="masterDataView" class="page-view hidden">
+                    <div class="flex justify-end mb-4 no-print">
+                        <button id="showAddItemModal" class="px-4 py-2 font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700">
+                            <i class="fas fa-plus mr-2"></i>Tambah Item
+                        </button>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <!-- Fixed Cost -->
+                        <div class="bg-white rounded-lg shadow-md overflow-hidden">
+                            <h3 class="p-4 text-lg font-semibold text-gray-800 border-b">Daftar Fixed Cost (Nilai Rupiah Statis)</h3>
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full divide-y divide-gray-200">
+                                    <thead class="bg-gray-50">
+                                        <tr>
+                                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nama Item</th>
+                                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nilai (Rp)</th>
+                                            <th scope="col" class="relative px-6 py-3 no-print"><span class="sr-only">Aksi</span></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="fixedCostTableBody" class="bg-white divide-y divide-gray-200">
+                                        <!-- Data diisi oleh JS -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <!-- Variable Cost -->
+                        <div class="bg-white rounded-lg shadow-md overflow-hidden">
+                            <h3 class="p-4 text-lg font-semibold text-gray-800 border-b">Daftar Variable Cost (Persentase Relatif)</h3>
+                             <div class="overflow-x-auto">
+                                <table class="min-w-full divide-y divide-gray-200">
+                                    <thead class="bg-gray-50">
+                                        <tr>
+                                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nama Item</th>
+                                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Persentase</th>
+                                            <th scope="col" class="relative px-6 py-3 no-print"><span class="sr-only">Aksi</span></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="variableCostTableBody" class="bg-white divide-y divide-gray-200">
+                                        <!-- Data diisi oleh JS -->
+                                    </tbody>
+                                    <tfoot class="bg-gray-50">
+                                        <tr>
+                                            <td class="px-6 py-4 text-right text-sm font-bold text-gray-900">TOTAL PERSENTASE</td>
+                                            <td id="totalPercentage" class="px-6 py-4 text-sm font-bold text-gray-900">0%</td>
+                                            <td class="px-6 py-4"></td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- View: Input Dana Pengelolaan -->
+                <div id="inputDpView" class="page-view hidden">
+                    <div class="max-w-2xl mx-auto">
+                        <form id="inputDpForm" class="p-6 bg-white rounded-lg shadow-md space-y-4">
+                            <div>
+                                <label for="inputDpMonth" class="block text-sm font-medium text-gray-700">Bulan</label>
+                                <select id="inputDpMonth" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"></select>
+                            </div>
+                            <div>
+                                <label for="inputDpYear" class="block text-sm font-medium text-gray-700">Tahun</label>
+                                <select id="inputDpYear" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"></select>
+                            </div>
+                            <div>
+                                <label for="inputDpTotal" class="block text-sm font-medium text-gray-700">Total Dana Pengelolaan (Rp)</label>
+                                <input id="inputDpTotal" type="number" step="0.01" min="0" required class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                            <button type="submit" class="w-full px-4 py-2 font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700">
+                                Simpan / Perbarui DP
+                            </button>
+                            <p id="inputDpMessage" class="mt-4 text-sm text-gray-500 text-center">Pilih bulan dan tahun untuk melihat/memperbarui data.</p>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- View: Laporan Budget vs Realisasi -->
+                <div id="laporanView" class="page-view hidden">
+                    <!-- Filter -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 p-4 bg-white rounded-lg shadow no-print">
+                        <div>
+                            <label for="laporanMonth" class="block text-sm font-medium text-gray-700">Bulan</label>
+                            <select id="laporanMonth" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"></select>
+                        </div>
+                        <div>
+                            <label for="laporanYear" class="block text-sm font-medium text-gray-700">Tahun</label>
+                            <select id="laporanYear" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"></select>
+                        </div>
+                        <div class="self-end">
+                            <button id="loadLaporanButton" class="w-full px-4 py-2 font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700">
+                                <i class="fas fa-search mr-2"></i>Tampilkan Laporan
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Peringatan jika DP belum diinput -->
+                    <div id="laporanError" class="hidden p-4 mb-6 text-yellow-800 bg-yellow-100 border border-yellow-300 rounded-lg">
+                        <p><i class="fas fa-exclamation-triangle mr-2"></i>Data Dana Pengelolaan untuk periode ini belum diinput. Silakan input data di menu "Input Dana Pengelolaan" terlebih dahulu.</p>
+                    </div>
+                    
+                    <!-- Laporan -->
+                    <div id="laporanInfo" class="hidden">
+                        <div class="flex flex-wrap justify-between items-center mb-4 gap-4">
+                            <div>
+                                <h3 class="text-xl font-semibold text-gray-800">Laporan Budget vs Realisasi</h3>
+                                <p class="text-gray-600">Periode: <span id="laporanBulanTahun" class="font-medium"></span></p>
+                                <p class="text-gray-600">Total Dana Pengelolaan: <span id="laporanTotalDp" class="font-medium"></span></p>
+                            </div>
+                            <!-- Tombol Aksi Laporan BvR -->
+                            <div class="flex flex-wrap space-x-2 no-print">
+                                <button id="exportPdfBvR" class="px-4 py-2 text-sm font-medium text-white bg-red-700 rounded-md hover:bg-red-800">
+                                    <i class="fas fa-file-pdf mr-2"></i>Export PDF
+                                </button>
+                                <button id="exportCsvBvR" class="px-4 py-2 text-sm font-medium text-white bg-green-700 rounded-md hover:bg-green-800">
+                                    <i class="fas fa-file-csv mr-2"></i>Export CSV
+                                </button>
+                                <button id="printBvR" class="px-4 py-2 text-sm font-medium text-white bg-gray-600 rounded-md hover:bg-gray-700">
+                                    <i class="fas fa-print mr-2"></i>Print
+                                </button>
+                                <button id="showAddRealisasiModal" class="px-4 py-2 font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700">
+                                    <i class="fas fa-plus mr-2"></i>Input Realisasi
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div id="printableAreaBvR">
+                             <div class="bg-white rounded-lg shadow-md overflow-hidden">
+                                <div class="overflow-x-auto">
+                                    <table id="laporanBvRTable" class="min-w-full divide-y divide-gray-200">
+                                        <thead class="bg-gray-50">
+                                            <tr>
+                                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipe</th>
+                                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item Budget</th>
+                                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Budget</th>
+                                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Realisasi</th>
+                                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sisa</th>
+                                                <th scope="col" class="relative px-6 py-3 no-print"><span class="sr-only">Aksi</span></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="laporanTableBody" class="bg-white divide-y divide-gray-200">
+                                            <!-- Data diisi oleh JS -->
+                                        </tbody>
+                                        <tfoot class="bg-gray-50">
+                                            <tr>
+                                                <td colspan="2" class="px-6 py-4 text-right text-sm font-bold text-gray-900">TOTAL KESELURUHAN</td>
+                                                <td id="laporanTotalBudget" class="px-6 py-4 text-sm font-bold text-gray-900">Rp 0</td>
+                                                <td id="laporanTotalRealisasi" class="px-6 py-4 text-sm font-bold text-gray-900">Rp 0</td>
+                                                <td id="laporanTotalSisa" class="px-6 py-4 text-sm font-bold text-gray-900">Rp 0</td>
+                                                <td class="px-6 py-4 no-print"></td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- View: Laporan & Export -->
+                <div id="laporanFilterView" class="page-view hidden">
+                    <!-- Filter -->
+                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 p-4 bg-white rounded-lg shadow no-print">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Periode Mulai</label>
+                            <div class="flex space-x-2 mt-1">
+                                <select id="filterStartMonth" class="w-1/2 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"></select>
+                                <select id="filterStartYear" class="w-1/2 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"></select>
+                            </div>
+                        </div>
+                         <div>
+                            <label class="block text-sm font-medium text-gray-700">Periode Selesai</label>
+                            <div class="flex space-x-2 mt-1">
+                                <select id="filterEndMonth" class="w-1/2 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"></select>
+                                <select id="filterEndYear" class="w-1/2 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"></select>
+                            </div>
+                        </div>
+                        <div>
+                            <label for="filterItem" class="block text-sm font-medium text-gray-700">Filter per Item (Opsional)</label>
+                            <select id="filterItem" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"></select>
+                        </div>
+                        <div class="md:col-span-3 self-end">
+                            <button id="loadFilterLaporanButton" class="w-full px-4 py-2 font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700">
+                                <i class="fas fa-search mr-2"></i>Tampilkan Laporan Agregat
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Tombol Aksi Laporan Filter -->
+                    <div class="flex flex-wrap space-x-2 mb-4 no-print">
+                        <button id="exportPdfButton" class="px-4 py-2 text-sm font-medium text-white bg-red-700 rounded-md hover:bg-red-800">
+                            <i class="fas fa-file-pdf mr-2"></i>Export PDF
+                        </button>
+                        <button id="exportCsvButton" class="px-4 py-2 text-sm font-medium text-white bg-green-700 rounded-md hover:bg-green-800">
+                            <i class="fas fa-file-csv mr-2"></i>Export CSV
+                        </button>
+                        <button id="printButton" class="px-4 py-2 text-sm font-medium text-white bg-gray-600 rounded-md hover:bg-gray-700">
+                            <i class="fas fa-print mr-2"></i>Print
+                        </button>
+                    </div>
+
+                    <!-- Laporan -->
+                    <div id="printableArea" class="bg-white rounded-lg shadow-md overflow-hidden">
+                        <h3 id="laporanFilterTitle" class="p-4 text-xl font-semibold text-gray-800 border-b">Laporan Agregat Budget vs Realisasi</h3>
+                        <div class="overflow-x-auto">
+                            <table id="laporanFilterTable" class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipe</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item Budget</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Budget</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Realisasi</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sisa</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="laporanFilterTableBody" class="bg-white divide-y divide-gray-200">
+                                    <!-- Data diisi oleh JS -->
+                                </tbody>
+                                <tfoot class="bg-gray-50">
+                                    <tr>
+                                        <td colspan="2" class="px-6 py-4 text-right text-sm font-bold text-gray-900">TOTAL KESELURUHAN</td>
+                                        <td id="laporanFilterTotalBudget" class="px-6 py-4 text-sm font-bold text-gray-900">Rp 0</td>
+                                        <td id="laporanFilterTotalRealisasi" class="px-6 py-4 text-sm font-bold text-gray-900">Rp 0</td>
+                                        <td id="laporanFilterTotalSisa" class="px-6 py-4 text-sm font-bold text-gray-900">Rp 0</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+            </main>
+        </div>
+    </div>
+    
+    <!-- Modal Tambah/Edit Item -->
+    <div id="itemModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 hidden">
+        <div class="w-full max-w-lg p-6 bg-white rounded-lg shadow-xl">
+            <form id="itemForm">
+                <h4 id="itemModalTitle" class="text-lg font-bold text-gray-900 mb-4">Modal Item</h4>
+                <input type="hidden" id="itemId">
+                <div class="space-y-4">
+                    <div>
+                        <label for="itemName" class="block text-sm font-medium text-gray-700">Nama Item</label>
+                        <input id="itemName" type="text" required class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label for="itemType" class="block text-sm font-medium text-gray-700">Tipe Item</label>
+                        <select id="itemType" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                            <option value="fixed">Fixed Cost (Pool 55%)</option>
+                            <option value="variable">Variable Cost (Pool 45%)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="itemValue" class="block text-sm font-medium text-gray-700">Nilai</label>
+                        <input id="itemValue" type="number" step="0.0001" min="0" required class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                        <p id="itemValueHelp" class="mt-1 text-xs text-gray-500">Masukkan nilai persentase relatif item ini (mis: 0.2 untuk 20%). Persentase ini akan dinormalisasi di dalam grup-nya (Fixed 55% / Variable 45%).</p>
+                    </div>
+                    <div class="flex justify-end space-x-2">
+                        <button type="button" id="itemModalCancel" class="px-4 py-2 font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300">
+                            Batal
+                        </button>
+                        <button type="submit" class="px-4 py-2 font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700">
+                            Simpan
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Modal Input Realisasi -->
+    <div id="realisasiModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 hidden">
+        <div class="w-full max-w-lg p-6 bg-white rounded-lg shadow-xl">
+            <form id="realisasiForm">
+                <h4 class="text-lg font-bold text-gray-900 mb-4">Input Realisasi</h4>
+                <div class="space-y-4">
+                    <div>
+                        <label for="realisasiItem" class="block text-sm font-medium text-gray-700">Item Budget</label>
+                        <select id="realisasiItem" required class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"></select>
+                    </div>
+                    <div>
+                        <label for="realisasiTanggal" class="block text-sm font-medium text-gray-700">Tanggal</label>
+                        <input id="realisasiTanggal" type="date" required class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label for="realisasiJumlah" class="block text-sm font-medium text-gray-700">Jumlah (Rupiah)</label>
+                        <input id="realisasiJumlah" type="number" step="0.01" min="0" required class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                     <div>
+                        <label for="realisasiKeterangan" class="block text-sm font-medium text-gray-700">Keterangan</Slabel>
+                        <textarea id="realisasiKeterangan" rows="3" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"></textarea>
+                    </div>
+                    <div class="flex justify-end space-x-2">
+                        <button type="button" id="realisasiModalCancel" class="px-4 py-2 font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300">
+                            Batal
+                        </button>
+                        <button type="submit" class="px-4 py-2 font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700">
+                            Simpan Realisasi
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Modal Detail Realisasi -->
+    <div id="detailRealisasiModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 hidden">
+        <div class="w-full max-w-2xl p-6 bg-white rounded-lg shadow-xl max-h-[90vh] flex flex-col">
+            <div class="flex justify-between items-center border-b pb-3 mb-4">
+                <h4 class="text-lg font-bold text-gray-900">Detail Realisasi: <span id="detailRealisasiItemName"></span></h4>
+                <button type="button" id="detailRealisasiModalClose" class="text-gray-500 hover:text-gray-800">
+                    <i class="fas fa-times text-2xl"></i>
+                </button>
+            </div>
+            <div class="overflow-y-auto">
+                 <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Keterangan</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jumlah</th>
+                            <th scope="col" class="relative px-6 py-3"><span class="sr-only">Aksi</span></th>
+                        </tr>
+                    </thead>
+                    <tbody id="detailRealisasiTableBody" class="bg-white divide-y divide-gray-200">
+                        <!-- Data diisi oleh JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+
+    <script type="module">
+        // ===== 1. KONFIGURASI SUPABASE =====
+        const SUPABASE_URL = 'https://ryjqchfcticynmirlvdi.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ5anFjaGZjdGljeW5taXJsdmRpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE1NTQ1OTQsImV4cCI6MjA3NzEzMDU5NH0.CMAUtO29-uCIm9QuBt_Vs2Vnt9KRMqqtsdUz_4yR5_s';
+        
+        const { createClient } = supabase;
+        const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        /*
+        ================================================================
+        PENTING! SETUP TABEL DI SUPABASE ANDA
+        ================================================================
+        Silakan masuk ke Supabase Dashboard > SQL Editor, lalu jalankan query ini untuk membuat tabel:
+
+        -- 1. Tabel Master Item Budget (item putih dan kuning)
+        CREATE TABLE IF NOT EXISTS master_items (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          item_name TEXT NOT NULL,
+          item_type TEXT NOT NULL, -- 'fixed' or 'variable'
+          value double precision NOT NULL -- (fixed amount in Rupiah) OR (percentage as 0.XX)
+        );
+
+        -- 2. Tabel Dana Pengelolaan (Input Admin Bulanan)
+        CREATE TABLE IF NOT EXISTS dana_pengelolaan (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          bulan INT NOT NULL,
+          tahun INT NOT NULL,
+          total_dp double precision NOT NULL,
+          created_at TIMESTAMPTZ DEFAULT now(),
+          UNIQUE(bulan, tahun) -- Hanya satu entri DP per bulan
+        );
+
+        -- 3. Tabel Realisasi (Input Pengeluaran Harian)
+        CREATE TABLE IF NOT EXISTS realisasi (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          item_id UUID REFERENCES master_items(id) ON DELETE SET NULL,
+          tanggal DATE NOT NULL,
+          jumlah double precision NOT NULL,
+          keterangan TEXT,
+          -- Untuk mempermudah filter
+          bulan INT NOT NULL,
+          tahun INT NOT NULL,
+          created_at TIMESTAMPTZ DEFAULT now()
+        );
+        
+        -- 4. Tabel Akumulasi Saldo DP (Ledger Kas)
+        CREATE TABLE IF NOT EXISTS saldo_dp_ledger (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          tanggal DATE NOT NULL,
+          sumber TEXT NOT NULL,
+          tipe TEXT NOT NULL, -- 'masuk' or 'keluar'
+          jumlah double precision NOT NULL,
+          keterangan TEXT,
+          created_at TIMESTAMPTZ DEFAULT now()
+        );
+        
+        -- Aktifkan Row Level Security (RLS) - Opsional tapi direkomendasikan
+        -- ALTER TABLE master_items ENABLE ROW LEVEL SECURITY;
+        -- ALTER TABLE dana_pengelolaan ENABLE ROW LEVEL SECURITY;
+        -- ALTER TABLE realisasi ENABLE ROW LEVEL SECURITY;
+        -- ALTER TABLE saldo_dp_ledger ENABLE ROW LEVEL SECURITY;
+
+        -- Buat Policies (Contoh sederhana: hanya user terautentikasi bisa akses)
+        -- CREATE POLICY "Allow authenticated users" ON master_items FOR ALL USING (auth.role() = 'authenticated');
+        -- CREATE POLICY "Allow authenticated users" ON dana_pengelolaan FOR ALL USING (auth.role() = 'authenticated');
+        -- CREATE POLICY "Allow authenticated users" ON realisasi FOR ALL USING (auth.role() = 'authenticated');
+        -- CREATE POLICY "Allow authenticated users" ON saldo_dp_ledger FOR ALL USING (auth.role() = 'authenticated');
+
+        -- Sample Data (Contoh dari file CSV Anda, ditambah contoh fixed cost)
+        -- Hapus jika sudah ada data
+        -- DELETE FROM master_items;
+
+        -- Ini adalah 'item putih' (Fixed Cost) - Sesuai Logika Baru (Nilai Rupiah)
+        INSERT INTO master_items (item_name, item_type, value)
+        VALUES
+          ('Operasional LAZ', 'fixed', 8000000),
+          ('SDM', 'fixed', 15000000),
+          ('Apresiasi & Reward', 'fixed', 1000000),
+          ('Pelatihan & Peningkatan Skill', 'fixed', 500000),
+          ('Promosi & Iklan', 'fixed', 1200000),
+          ('Pengadaan Aset & Inventaris', 'fixed', 2000000),
+          ('Dana Cadangan', 'fixed', 1500000);
+        
+        -- Ini adalah 'item kuning' (Variable Cost) - Berdasarkan CSV Anda (Nilai Persentase)
+        -- Pastikan nilai 'value' adalah persentase dalam desimal (mis: 8.9% -> 0.089)
+        INSERT INTO master_items (item_name, item_type, value)
+        VALUES
+          ('BOT (Akomodasi)', 'variable', 0.089247962),
+          ('BOD (Akomodasi)', 'variable', 0.050201979),
+          ('Peralatan', 'variable', 0.050201979),
+          ('Biaya Operasional', 'variable', 0.112954452);
+        
+        -- Total persentase dari contoh di atas adalah:
+        -- 0.0892 + 0.0502 + 0.0502 + 0.1129 = 0.3025...
+        -- Aplikasi akan otomatis menormalisasi ini sehingga totalnya menjadi 100% dari SISA DANA.
+        
+        */
+
+        // ===== 2. STATE APLIKASI =====
+        let currentUser = null;
+        let masterItems = []; // Menyimpan data dari tabel master_items
+        let currentMonthData = {
+            budget: [],
+            realisasi: []
+        };
+        let dashboardCharts = {
+            budgetRealisasi: null,
+            variableCost: null
+        };
+        let deleteAction = null; // Menyimpan fungsi callback untuk modal hapus
+        
+        // ===== 3. ELEMENT SELECTORS =====
+        const loginView = document.getElementById('loginView');
+        const mainAppView = document.getElementById('mainAppView');
+        const pageViews = document.querySelectorAll('.page-view');
+        const navLinks = document.querySelectorAll('.nav-link');
+        const pageTitle = document.getElementById('pageTitle');
+        const userEmailDisplay = document.getElementById('userEmailDisplay');
+        const logoutButton = document.getElementById('logoutButton');
+
+        // Form Auth
+        const loginForm = document.getElementById('loginForm');
+        const registerForm = document.getElementById('registerForm');
+        const authTitle = document.getElementById('authTitle');
+        const authToggleText = document.getElementById('authToggleText');
+        const authToggleLink = document.getElementById('authToggleLink');
+        const authMessage = document.getElementById('authMessage');
+
+        // Modals
+        const loadingModal = document.getElementById('loadingModal');
+        const loadingMessage = document.getElementById('loadingMessage');
+        const messageModal = document.getElementById('messageModal');
+        const messageTitle = document.getElementById('messageTitle');
+        const messageText = document.getElementById('messageText');
+        const messageCloseButton = document.getElementById('messageCloseButton');
+        const deleteConfirmModal = document.getElementById('deleteConfirmModal');
+        const deleteConfirmTitle = document.getElementById('deleteConfirmTitle');
+        const deleteConfirmText = document.getElementById('deleteConfirmText');
+        const deleteConfirmCancel = document.getElementById('deleteConfirmCancel');
+        const deleteConfirmButton = document.getElementById('deleteConfirmButton');
+
+        // Master Data
+        const fixedCostTableBody = document.getElementById('fixedCostTableBody');
+        const variableCostTableBody = document.getElementById('variableCostTableBody');
+        const totalPercentage = document.getElementById('totalPercentage');
+        const showAddItemModal = document.getElementById('showAddItemModal');
+        const itemModal = document.getElementById('itemModal');
+        const itemForm = document.getElementById('itemForm');
+        const itemModalTitle = document.getElementById('itemModalTitle');
+        const itemModalCancel = document.getElementById('itemModalCancel');
+        const itemId = document.getElementById('itemId');
+        const itemName = document.getElementById('itemName');
+        const itemType = document.getElementById('itemType');
+        const itemValue = document.getElementById('itemValue');
+        const itemValueHelp = document.getElementById('itemValueHelp');
+        
+        // Input DP
+        const inputDpForm = document.getElementById('inputDpForm');
+        const inputDpMonth = document.getElementById('inputDpMonth');
+        const inputDpYear = document.getElementById('inputDpYear');
+        const inputDpTotal = document.getElementById('inputDpTotal');
+        const inputDpMessage = document.getElementById('inputDpMessage');
+
+        // Laporan Budget & Realisasi
+        const laporanMonth = document.getElementById('laporanMonth');
+        const laporanYear = document.getElementById('laporanYear');
+        const loadLaporanButton = document.getElementById('loadLaporanButton');
+        const laporanInfo = document.getElementById('laporanInfo');
+        const laporanError = document.getElementById('laporanError');
+        const laporanBulanTahun = document.getElementById('laporanBulanTahun');
+        const laporanTotalDp = document.getElementById('laporanTotalDp');
+        const laporanTableBody = document.getElementById('laporanTableBody');
+        const laporanTotalBudget = document.getElementById('laporanTotalBudget');
+        const laporanTotalRealisasi = document.getElementById('laporanTotalRealisasi');
+        const laporanTotalSisa = document.getElementById('laporanTotalSisa');
+        const exportPdfBvR = document.getElementById('exportPdfBvR');
+        const exportCsvBvR = document.getElementById('exportCsvBvR');
+        const printBvR = document.getElementById('printBvR');
+
+        // Realisasi
+        const showAddRealisasiModal = document.getElementById('showAddRealisasiModal');
+        const realisasiModal = document.getElementById('realisasiModal');
+        const realisasiForm = document.getElementById('realisasiForm');
+        const realisasiModalCancel = document.getElementById('realisasiModalCancel');
+        const realisasiItem = document.getElementById('realisasiItem');
+        const realisasiTanggal = document.getElementById('realisasiTanggal');
+        const realisasiJumlah = document.getElementById('realisasiJumlah');
+        const realisasiKeterangan = document.getElementById('realisasiKeterangan');
+
+        // Detail Realisasi
+        const detailRealisasiModal = document.getElementById('detailRealisasiModal');
+        const detailRealisasiItemName = document.getElementById('detailRealisasiItemName');
+        const detailRealisasiTableBody = document.getElementById('detailRealisasiTableBody');
+        const detailRealisasiModalClose = document.getElementById('detailRealisasiModalClose');
+
+        // Dashboard
+        const dashboardMonth = document.getElementById('dashboardMonth');
+        const dashboardYear = document.getElementById('dashboardYear');
+        const loadDashboardButton = document.getElementById('loadDashboardButton');
+        const dashboardTotalBudget = document.getElementById('dashboardTotalBudget');
+        const dashboardTotalRealisasi = document.getElementById('dashboardTotalRealisasi');
+        const dashboardSisaAnggaran = document.getElementById('dashboardSisaAnggaran');
+
+        // Laporan Filter
+        const filterStartMonth = document.getElementById('filterStartMonth');
+        const filterStartYear = document.getElementById('filterStartYear');
+        const filterEndMonth = document.getElementById('filterEndMonth');
+        const filterEndYear = document.getElementById('filterEndYear');
+        const filterItem = document.getElementById('filterItem');
+        const loadFilterLaporanButton = document.getElementById('loadFilterLaporanButton');
+        const laporanFilterTitle = document.getElementById('laporanFilterTitle');
+        const laporanFilterTable = document.getElementById('laporanFilterTable');
+        const laporanFilterTableBody = document.getElementById('laporanFilterTableBody');
+        const laporanFilterTotalBudget = document.getElementById('laporanFilterTotalBudget');
+        const laporanFilterTotalRealisasi = document.getElementById('laporanFilterTotalRealisasi');
+        const laporanFilterTotalSisa = document.getElementById('laporanFilterTotalSisa');
+        const exportPdfButton = document.getElementById('exportPdfButton');
+        const exportCsvButton = document.getElementById('exportCsvButton');
+        const printButton = document.getElementById('printButton');
+
+        // Akumulasi Saldo DP
+        const saldoBulanLalu = document.getElementById('saldoBulanLalu');
+        const saldoSaatIni = document.getElementById('saldoSaatIni');
+        const saldoDpForm = document.getElementById('saldoDpForm');
+        const saldoTanggal = document.getElementById('saldoTanggal');
+        const saldoSumber = document.getElementById('saldoSumber');
+        const saldoTipe = document.getElementById('saldoTipe');
+        const saldoJumlah = document.getElementById('saldoJumlah');
+        const saldoKeterangan = document.getElementById('saldoKeterangan');
+        const saldoDpTableBody = document.getElementById('saldoDpTableBody');
+
+        // ===== 4. UTILITY FUNCTIONS =====
+        const showLoading = (message = 'Loading...') => {
+            loadingMessage.textContent = message;
+            loadingModal.classList.remove('hidden');
+        };
+        const hideLoading = () => loadingModal.classList.add('hidden');
+
+        const showMessage = (title, text) => {
+            messageTitle.textContent = title;
+            messageText.textContent = text;
+            messageModal.classList.remove('hidden');
+        };
+        messageCloseButton.onclick = () => messageModal.classList.add('hidden');
+
+        const formatRupiah = (number) => {
+            return new Intl.NumberFormat('id-ID', {
+                style: 'currency',
+                currency: 'IDR',
+                minimumFractionDigits: 0
+            }).format(number);
+        };
+        
+        const formatPersen = (number) => {
+             return new Intl.NumberFormat('id-ID', {
+                style: 'percent',
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 4
+            }).format(number);
+        };
+
+        const getTodayDate = () => {
+            return new Date().toISOString().split('T')[0];
+        };
+        
+        const populateMonthOptions = (selectElement) => {
+            const months = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+            const currentMonth = new Date().getMonth(); // 0-11
+            selectElement.innerHTML = '';
+            months.forEach((month, index) => {
+                const option = document.createElement('option');
+                option.value = index + 1; // 1-12
+                option.textContent = month;
+                if (index === currentMonth) {
+                    option.selected = true;
+                }
+                selectElement.appendChild(option);
+            });
+        };
+
+        const populateYearOptions = (selectElement) => {
+            const currentYear = new Date().getFullYear();
+            selectElement.innerHTML = '';
+            for (let i = currentYear + 1; i >= currentYear - 5; i--) {
+                const option = document.createElement('option');
+                option.value = i;
+                option.textContent = i;
+                if (i === currentYear) {
+                    option.selected = true;
+                }
+                selectElement.appendChild(option);
+            }
+        };
+
+        // ===== 5. NAVIGASI & VIEW =====
+        const showView = (viewId) => {
+            pageViews.forEach(view => view.classList.add('hidden'));
+            document.getElementById(viewId).classList.remove('hidden');
+
+            navLinks.forEach(link => {
+                if (link.dataset.view === viewId) {
+                    link.classList.add('bg-gray-200');
+                    pageTitle.textContent = link.textContent.trim();
+                } else {
+                    link.classList.remove('bg-gray-200');
+                }
+            });
+            
+            // Load data spesifik saat view ditampilkan
+            switch (viewId) {
+                case 'dashboardView':
+                    loadDashboardData();
+                    break;
+                case 'masterDataView':
+                    renderMasterItems();
+                    break;
+                case 'laporanView':
+                    loadLaporanRealisasi();
+                    break;
+                case 'laporanFilterView':
+                    populateFilterItems();
+                    break;
+                case 'saldoDpView':
+                    loadSaldoDpView();
+                    break;
+            }
+        };
+
+        navLinks.forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const viewId = e.currentTarget.dataset.view;
+                showView(viewId);
+            });
+        });
+
+        // ===== 6. FUNGSI AUTENTIKASI =====
+        const setupAuthListeners = () => {
+            // Toggle Login / Register
+            authToggleLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                const isLogin = loginForm.classList.contains('hidden');
+                if (isLogin) {
+                    // Switch to Login
+                    loginForm.classList.remove('hidden');
+                    registerForm.classList.add('hidden');
+                    authTitle.textContent = 'Login Akun';
+                    authToggleText.textContent = 'Belum punya akun?';
+                    authToggleLink.textContent = 'Daftar di sini';
+                } else {
+                    // Switch to Register
+                    loginForm.classList.add('hidden');
+                    registerForm.classList.remove('hidden');
+                    authTitle.textContent = 'Buat Akun Baru';
+                    authToggleText.textContent = 'Sudah punya akun?';
+                    authToggleLink.textContent = 'Login di sini';
+                }
+                authMessage.textContent = '';
+            });
+
+            // Handle Login
+            loginForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                showLoading('Proses login...');
+                authMessage.textContent = '';
+                const email = loginForm.loginEmail.value;
+                const password = loginForm.loginPassword.value;
+                
+                const { error } = await db.auth.signInWithPassword({ email, password });
+                
+                hideLoading();
+                if (error) {
+                    authMessage.textContent = 'Login gagal: ' + error.message;
+                } else {
+                    // onAuthStateChanged akan menangani sisanya
+                }
+            });
+
+            // Handle Register
+            registerForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                showLoading('Membuat akun...');
+                authMessage.textContent = '';
+                const email = registerForm.registerEmail.value;
+                const password = registerForm.registerPassword.value;
+                
+                const { error } = await db.auth.signUp({ email, password });
+                
+                hideLoading();
+                if (error) {
+                    authMessage.textContent = 'Registrasi gagal: ' + error.message;
+                } else {
+                    showMessage('Registrasi Berhasil', 'Silakan cek email Anda untuk verifikasi, lalu login.');
+                    // Balik ke form login
+                    authToggleLink.click(); 
+                }
+            });
+            
+            // Handle Logout
+            logoutButton.addEventListener('click', async () => {
+                showLoading('Logout...');
+                await db.auth.signOut();
+                hideLoading();
+                // onAuthStateChanged akan menangani sisanya
+            });
+        };
+
+        // Cek status auth saat load
+        const checkAuthState = async () => {
+            const { data: { session }, error } = await db.auth.getSession();
+            
+            if (session) {
+                currentUser = session.user;
+                userEmailDisplay.textContent = currentUser.email;
+                loginView.classList.add('hidden');
+                mainAppView.classList.remove('hidden');
+                // Load data awal
+                await fetchMasterItems();
+                // Tampilkan dashboard
+                showView('dashboardView');
+            } else {
+                currentUser = null;
+                loginView.classList.remove('hidden');
+                mainAppView.classList.add('hidden');
+            }
+        };
+
+        // Listen perubahan auth
+        db.auth.onAuthStateChange((event, session) => {
+            checkAuthState();
+        });
+
+        // ===== 7. FUNGSI MASTER DATA =====
+        const fetchMasterItems = async () => {
+            showLoading('Mengambil data master item...');
+            const { data, error } = await db.from('master_items').select('*').order('item_name');
+            
+            if (error) {
+                hideLoading();
+                showMessage('Error', 'Gagal mengambil data master: ' + error.message);
+                return;
+            }
+            masterItems = data;
+            hideLoading();
+        };
+
+        const renderMasterItems = () => {
+            fixedCostTableBody.innerHTML = '';
+            variableCostTableBody.innerHTML = '';
+            let totalVarPercentage = 0;
+
+            if (masterItems.length === 0) {
+                 fixedCostTableBody.innerHTML = '<tr><td colspan="3" class="px-6 py-4 text-center text-gray-500">Belum ada data.</td></tr>';
+                 variableCostTableBody.innerHTML = '<tr><td colspan="3" class="px-6 py-4 text-center text-gray-500">Belum ada data.</td></tr>';
+            }
+
+            masterItems.forEach(item => {
+                const tr = document.createElement('tr');
+                let valueDisplay = '';
+                
+                if (item.item_type === 'fixed') {
+                    valueDisplay = formatRupiah(item.value); // <-- PERBAIKAN: Format sebagai Rupiah
+                    tr.innerHTML = `
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${item.item_name}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${valueDisplay}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2 no-print">
+                            <button data-id="${item.id}" class="edit-item-btn text-blue-600 hover:text-blue-900"><i class="fas fa-edit"></i></button>
+                            <button data-id="${item.id}" class="delete-item-btn text-red-600 hover:text-red-900"><i class="fas fa-trash"></i></button>
+                        </td>
+                    `;
+                    fixedCostTableBody.appendChild(tr);
+                } else {
+                    valueDisplay = formatPersen(item.value); // <-- Format sebagai Persen
+                    totalVarPercentage += item.value;
+                    tr.innerHTML = `
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${item.item_name}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${valueDisplay}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2 no-print">
+                            <button data-id="${item.id}" class="edit-item-btn text-blue-600 hover:text-blue-900"><i class="fas fa-edit"></i></button>
+                            <button data-id="${item.id}" class="delete-item-btn text-red-600 hover:text-red-900"><i class="fas fa-trash"></i></button>
+                        </td>
+                    `;
+                    variableCostTableBody.appendChild(tr);
+                }
+            });
+            
+            totalPercentage.textContent = formatPersen(totalVarPercentage);
+            
+            // Add event listeners for edit/delete buttons
+            document.querySelectorAll('.edit-item-btn').forEach(btn => {
+                btn.addEventListener('click', handleEditItem);
+            });
+            document.querySelectorAll('.delete-item-btn').forEach(btn => {
+                btn.addEventListener('click', handleDeleteItem);
+            });
+        };
+
+        const handleEditItem = (e) => {
+            const id = e.currentTarget.dataset.id;
+            const item = masterItems.find(i => i.id === id);
+            if (!item) return;
+
+            itemModalTitle.textContent = 'Edit Item Budget';
+            itemId.value = item.id;
+            itemName.value = item.item_name;
+            itemType.value = item.item_type;
+            itemValue.value = item.value;
+            
+            // PERBAIKAN: Update teks bantuan saat modal edit dibuka
+            updateItemValueHelp();
+            
+            itemModal.classList.remove('hidden');
+        };
+
+        const handleDeleteItem = async (e) => {
+            const id = e.currentTarget.dataset.id;
+            const item = masterItems.find(i => i.id === id);
+            if (!item) return;
+
+            // Set data di modal konfirmasi
+            deleteConfirmTitle.textContent = 'Konfirmasi Hapus Item';
+            deleteConfirmText.textContent = `Anda yakin ingin menghapus item "${item.item_name}"? Tindakan ini tidak bisa dibatalkan.`;
+            deleteConfirmButton.textContent = 'Ya, Hapus Item';
+            
+            // Set action callback
+            deleteAction = async () => {
+                showLoading('Menghapus item...');
+                const { error } = await db.from('master_items').delete().eq('id', id);
+                hideLoading();
+                
+                if (error) {
+                    showMessage('Error', 'Gagal menghapus item: ' + error.message);
+                } else {
+                    showMessage('Sukses', 'Item berhasil dihapus.');
+                    await fetchMasterItems();
+                    renderMasterItems(); // Refresh tabel
+                }
+            };
+            
+            // Tampilkan modal
+            deleteConfirmModal.classList.remove('hidden');
+        };
+
+        showAddItemModal.addEventListener('click', () => {
+            itemModalTitle.textContent = 'Tambah Item Budget';
+            itemForm.reset();
+            itemId.value = '';
+            // PERBAIKAN: Update teks bantuan saat modal tambah dibuka
+            updateItemValueHelp();
+            itemModal.classList.remove('hidden');
+        });
+        itemModalCancel.addEventListener('click', () => itemModal.classList.add('hidden'));
+        
+        // PERBAIKAN: Buat fungsi untuk update Teks Bantuan & Step di modal
+        const updateItemValueHelp = () => {
+            if (itemType.value === 'fixed') {
+                itemValueHelp.textContent = 'Masukkan jumlah Rupiah tetap untuk item ini (mis: 15000000).';
+                itemValue.step = '1000'; // Step untuk Rupiah
+            } else {
+                itemValueHelp.textContent = 'Masukkan nilai persentase relatif item ini (mis: 0.2 untuk 20%).';
+                itemValue.step = '0.0001'; // Step untuk Persen
+            }
+        };
+        // Tambah listener ke dropdown tipe
+        itemType.addEventListener('change', updateItemValueHelp);
+
+        itemForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            showLoading('Menyimpan item...');
+
+            const itemData = {
+                item_name: itemName.value,
+                item_type: itemType.value,
+                value: parseFloat(itemValue.value)
+            };
+            const id = itemId.value;
+            let error;
+
+            if (id) {
+                // Update
+                const { error: updateError } = await db.from('master_items').update(itemData).eq('id', id);
+                error = updateError;
+            } else {
+                // Insert
+                const { error: insertError } = await db.from('master_items').insert(itemData);
+                error = insertError;
+            }
+
+            hideLoading();
+            if (error) {
+                showMessage('Error', 'Gagal menyimpan item: ' + error.message);
+            } else {
+                showMessage('Sukses', 'Item berhasil disimpan.');
+                itemModal.classList.add('hidden');
+                await fetchMasterItems();
+                renderMasterItems();
+            }
+        });
+
+        // ===== 8. FUNGSI LOGIKA BUDGET =====
+        /**
+         * Fungsi inti untuk menghitung alokasi budget
+         * @param {number} totalDP - Total Dana Pengelolaan
+         * @returns {Array} - Array objek budget terhitung
+         *
+         * LOGIKA BARU (Sesuai permintaan 28/10 v2):
+         * 1. Fixed Cost adalah nilai Rupiah statis dari master data.
+         * 2. Sisa Dana = Total DP (Bulanan) - Total Fixed Cost.
+         * 3. Sisa Dana dibagikan ke item 'variable' sesuai persentase relatif (normalisasi).
+         */
+        const calculateBudget = (totalDP) => {
+            const calculatedBudget = [];
+            
+            // 1. Proses Fixed Cost (Ambil nilai Rupiah statis)
+            const fixedItems = masterItems.filter(i => i.item_type === 'fixed');
+            let totalFixedCost = 0;
+
+            fixedItems.forEach(item => {
+                const itemBudget = item.value; // Nilai 'value' adalah Rupiah
+                totalFixedCost += itemBudget;
+                
+                calculatedBudget.push({
+                    item_id: item.id,
+                    item_name: item.item_name,
+                    item_type: 'fixed',
+                    budget_amount: itemBudget // Budget adalah nilai statis itu sendiri
+                });
+            });
+
+            // 2. Hitung Sisa Dana
+            const sisaDana = totalDP - totalFixedCost;
+            
+            // 3. Proses Variable Cost (Pool = Sisa Dana)
+            const variableItems = masterItems.filter(i => i.item_type === 'variable');
+            const totalVariablePercentage = variableItems.reduce((acc, item) => acc + item.value, 0);
+            
+            variableItems.forEach(item => {
+                // Normalisasi persentase di dalam grup 'variable'
+                const normalizedPercent = (totalVariablePercentage > 0) ? (item.value / totalVariablePercentage) : 0;
+                // Alokasikan dari Sisa Dana
+                const itemBudget = sisaDana * normalizedPercent; 
+                
+                calculatedBudget.push({
+                    item_id: item.id,
+                    item_name: item.item_name,
+                    item_type: 'variable',
+                    budget_amount: itemBudget
+                });
+            });
+
+            return calculatedBudget;
+        };
+
+        // ===== 9. FUNGSI INPUT DANA PENGELOLAAN =====
+        inputDpForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            showLoading('Menyimpan Dana Pengelolaan...');
+            
+            const dpData = {
+                bulan: parseInt(inputDpMonth.value),
+                tahun: parseInt(inputDpYear.value),
+                total_dp: parseFloat(inputDpTotal.value)
+            };
+
+            // Gunakan 'upsert' untuk insert atau update jika data bulan/tahun sudah ada
+            const { error } = await db.from('dana_pengelolaan').upsert(dpData, { onConflict: 'bulan, tahun' });
+
+            hideLoading();
+            if (error) {
+                showMessage('Error', 'Gagal menyimpan DP: ' + error.message);
+                inputDpMessage.textContent = 'Gagal menyimpan: ' + error.message;
+                inputDpMessage.className = 'mt-4 text-sm text-red-600';
+            } else {
+                showMessage('Sukses', 'Dana Pengelolaan berhasil disimpan.');
+                inputDpMessage.textContent = 'Data berhasil disimpan/diperbarui.';
+                inputDpMessage.className = 'mt-4 text-sm text-green-600';
+            }
+        });
+        
+        // Cek data DP saat bulan/tahun diganti
+        const checkExistingDp = async () => {
+             const bulan = parseInt(inputDpMonth.value);
+             const tahun = parseInt(inputDpYear.value);
+             
+             if (!bulan || !tahun) return;
+             
+             inputDpMessage.textContent = 'Mengecek data...';
+             inputDpMessage.className = 'mt-4 text-sm text-gray-500';
+             
+             const { data, error } = await db.from('dana_pengelolaan')
+                .select('total_dp')
+                .eq('bulan', bulan)
+                .eq('tahun', tahun)
+                .maybeSingle(); // maybeSingle() return null jika tidak ada, error jika > 1
+                
+            if (data) {
+                inputDpTotal.value = data.total_dp;
+                inputDpMessage.textContent = `Data untuk periode ini sudah ada (${formatRupiah(data.total_dp)}). Menyimpan akan memperbarui data.`;
+                inputDpMessage.className = 'mt-4 text-sm text-blue-600';
+            } else {
+                inputDpTotal.value = '';
+                inputDpMessage.textContent = 'Belum ada data DP untuk periode ini.';
+                inputDpMessage.className = 'mt-4 text-sm text-gray-500';
+            }
+        };
+        inputDpMonth.addEventListener('change', checkExistingDp);
+        inputDpYear.addEventListener('change', checkExistingDp);
+
+        // ===== 10. FUNGSI LAPORAN BUDGET & REALISASI =====
+        
+        // Fungsi untuk mengambil data & render laporan
+        const loadLaporanRealisasi = async () => {
+            showLoading('Memuat laporan...');
+            laporanTableBody.innerHTML = '';
+            laporanInfo.classList.add('hidden');
+            laporanError.classList.add('hidden');
+            
+            const bulan = parseInt(laporanMonth.value);
+            const tahun = parseInt(laporanYear.value);
+
+            // 1. Cek Dana Pengelolaan
+            const { data: dpData, error: dpError } = await db.from('dana_pengelolaan')
+                .select('total_dp')
+                .eq('bulan', bulan)
+                .eq('tahun', tahun)
+                .maybeSingle();
+
+            if (dpError) {
+                hideLoading();
+                showMessage('Error', 'Gagal mengambil data DP: ' + dpError.message);
+                return;
+            }
+
+            if (!dpData) {
+                hideLoading();
+                laporanError.classList.remove('hidden');
+                return;
+            }
+
+            // Tampilkan info
+            const totalDP = dpData.total_dp;
+            laporanInfo.classList.remove('hidden');
+            laporanBulanTahun.textContent = `${laporanMonth.options[laporanMonth.selectedIndex].text} ${tahun}`;
+            laporanTotalDp.textContent = formatRupiah(totalDP);
+            
+            // 2. Hitung Budget
+            const calculatedBudget = calculateBudget(totalDP);
+
+            // 3. Ambil Realisasi
+            const { data: realisasiData, error: realisasiError } = await db.from('realisasi')
+                .select('item_id, jumlah')
+                .eq('bulan', bulan)
+                .eq('tahun', tahun);
+                
+            if (realisasiError) {
+                hideLoading();
+                showMessage('Error', 'Gagal mengambil data realisasi: ' + realisasiError.message);
+                return;
+            }
+            
+            // 4. Agregat Realisasi per item_id
+            const realisasiPerItem = realisasiData.reduce((acc, item) => {
+                if (!acc[item.item_id]) {
+                    acc[item.item_id] = 0;
+                }
+                acc[item.item_id] += item.jumlah;
+                return acc;
+            }, {});
+
+            // 5. Gabungkan data & Render Tabel
+            let totalBudget = 0;
+            let totalRealisasi = 0;
+            let totalSisa = 0;
+
+            const renderRow = (item, budget, realisasi) => {
+                const sisa = budget - realisasi;
+                totalBudget += budget;
+                totalRealisasi += realisasi;
+                totalSisa += sisa;
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium ${item.item_type === 'fixed' ? 'text-gray-900' : 'text-gray-700'}">${item.item_type === 'fixed' ? 'Fixed Cost' : 'Variable Cost'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${item.item_name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${formatRupiah(budget)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${formatRupiah(realisasi)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm ${sisa < 0 ? 'text-red-600' : 'text-green-600'} font-medium">${formatRupiah(sisa)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-medium no-print">
+                        <button data-id="${item.item_id}" data-name="${item.item_name}" class="detail-realisasi-btn text-blue-600 hover:text-blue-900"><i class="fas fa-eye"></i></button>
+                    </td>
+                `;
+                return tr;
+            };
+
+            // Render Fixed
+            calculatedBudget.filter(b => b.item_type === 'fixed').forEach(item => {
+                const realisasi = realisasiPerItem[item.item_id] || 0;
+                laporanTableBody.appendChild(renderRow(item, item.budget_amount, realisasi));
+            });
+            
+            // Render Variable
+            calculatedBudget.filter(b => b.item_type === 'variable').forEach(item => {
+                const realisasi = realisasiPerItem[item.item_id] || 0;
+                laporanTableBody.appendChild(renderRow(item, item.budget_amount, realisasi));
+            });
+
+            // Render Total
+            laporanTotalBudget.textContent = formatRupiah(totalBudget);
+            laporanTotalRealisasi.textContent = formatRupiah(totalRealisasi);
+            laporanTotalSisa.textContent = formatRupiah(totalSisa);
+
+            // Simpan data untuk dashboard
+            currentMonthData.budget = calculatedBudget;
+            currentMonthData.realisasi = realisasiPerItem;
+            
+            // Add listener untuk tombol detail
+            document.querySelectorAll('.detail-realisasi-btn').forEach(btn => {
+                btn.addEventListener('click', showDetailRealisasi);
+            });
+            
+            hideLoading();
+        };
+        
+        loadLaporanButton.addEventListener('click', loadLaporanRealisasi);
+
+        // ===== 11. FUNGSI INPUT & DETAIL REALISASI =====
+        
+        // Buka Modal Input Realisasi
+        showAddRealisasiModal.addEventListener('click', () => {
+            realisasiForm.reset();
+            realisasiTanggal.value = getTodayDate();
+            
+            // Isi pilihan item
+            realisasiItem.innerHTML = '<option value="">-- Pilih Item --</option>';
+            masterItems.sort((a,b) => a.item_name.localeCompare(b.item_name)).forEach(item => {
+                const option = document.createElement('option');
+                option.value = item.id;
+                option.textContent = `${item.item_name} (${item.item_type})`;
+                realisasiItem.appendChild(option);
+            });
+            
+            realisasiModal.classList.remove('hidden');
+        });
+        realisasiModalCancel.addEventListener('click', () => realisasiModal.classList.add('hidden'));
+        
+        // Simpan Realisasi
+        realisasiForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            showLoading('Menyimpan realisasi...');
+            
+            const tanggal = new Date(realisasiTanggal.value);
+            
+            const realisasiData = {
+                item_id: realisasiItem.value,
+                tanggal: realisasiTanggal.value,
+                jumlah: parseFloat(realisasiJumlah.value),
+                keterangan: realisasiKeterangan.value,
+                // Tambah bulan & tahun untuk filter
+                bulan: tanggal.getMonth() + 1,
+                tahun: tanggal.getFullYear()
+            };
+            
+            const { error } = await db.from('realisasi').insert(realisasiData);
+            hideLoading();
+            
+            if (error) {
+                showMessage('Error', 'Gagal menyimpan realisasi: ' + error.message);
+            } else {
+                showMessage('Sukses', 'Realisasi berhasil disimpan.');
+                realisasiModal.classList.add('hidden');
+                // Refresh laporan jika periodenya sama
+                if (realisasiData.bulan === parseInt(laporanMonth.value) && realisasiData.tahun === parseInt(laporanYear.value)) {
+                    loadLaporanRealisasi();
+                }
+            }
+        });
+
+        // Tampilkan Modal Detail Realisasi
+        const showDetailRealisasi = async (e) => {
+            const itemId = e.currentTarget.dataset.id;
+            const itemName = e.currentTarget.dataset.name;
+            const bulan = parseInt(laporanMonth.value);
+            const tahun = parseInt(laporanYear.value);
+
+            detailRealisasiItemName.textContent = itemName;
+            detailRealisasiTableBody.innerHTML = '<tr><td colspan="4" class="px-6 py-4 text-center">Mengambil data...</td></tr>';
+            detailRealisasiModal.classList.remove('hidden');
+
+            const { data, error } = await db.from('realisasi')
+                .select('*')
+                .eq('item_id', itemId)
+                .eq('bulan', bulan)
+                .eq('tahun', tahun)
+                .order('tanggal', { ascending: false });
+
+            if (error) {
+                detailRealisasiTableBody.innerHTML = '<tr><td colspan="4" class="px-6 py-4 text-center text-red-500">Gagal mengambil data.</td></tr>';
+                return;
+            }
+            
+            if (data.length === 0) {
+                 detailRealisasiTableBody.innerHTML = '<tr><td colspan="4" class="px-6 py-4 text-center text-gray-500">Tidak ada data realisasi.</td></tr>';
+                 return;
+            }
+
+            detailRealisasiTableBody.innerHTML = '';
+            data.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${item.tanggal}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${item.keterangan || '-'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${formatRupiah(item.jumlah)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <button data-id="${item.id}" class="delete-realisasi-btn text-red-600 hover:text-red-900"><i class="fas fa-trash"></i></button>
+                    </td>
+                `;
+                detailRealisasiTableBody.appendChild(tr);
+            });
+            
+            // Add listener hapus
+            document.querySelectorAll('.delete-realisasi-btn').forEach(btn => {
+                btn.addEventListener('click', handleDeleteRealisasi);
+            });
+        };
+        detailRealisasiModalClose.addEventListener('click', () => detailRealisasiModal.classList.add('hidden'));
+
+        // Hapus Realisasi
+        const handleDeleteRealisasi = async (e) => {
+             const id = e.currentTarget.dataset.id;
+             
+             // Ganti confirm() dengan modal kustom
+             deleteConfirmTitle.textContent = 'Konfirmasi Hapus Realisasi';
+             deleteConfirmText.textContent = 'Anda yakin ingin menghapus data realisasi ini?';
+             deleteConfirmButton.textContent = 'Ya, Hapus Realisasi';
+             
+             // Set action callback
+             deleteAction = async () => {
+                showLoading('Menghapus...');
+                const { error } = await db.from('realisasi').delete().eq('id', id);
+                hideLoading();
+                
+                if (error) {
+                    showMessage('Error', 'Gagal menghapus: ' + error.message);
+                } else {
+                    showMessage('Sukses', 'Data realisasi dihapus.');
+                    detailRealisasiModal.classList.add('hidden'); // Tutup modal detail
+                    loadLaporanRealisasi(); // Refresh laporan utama
+                }
+             };
+             
+             // Tampilkan modal
+             deleteConfirmModal.classList.remove('hidden');
+        };
+
+        // ===== 12. FUNGSI DASHBOARD =====
+        const loadDashboardData = async () => {
+            // Gunakan filter bulan/tahun dari dashboard
+            const bulan = parseInt(dashboardMonth.value);
+            const tahun = parseInt(dashboardYear.value);
+
+            // Set filter di Laporan Realisasi juga
+            laporanMonth.value = bulan;
+            laporanYear.value = tahun;
+            
+            // Panggil fungsi load laporan, karena fungsi itu sudah menghitung semua
+            // dan menyimpannya di `currentMonthData`
+            await loadLaporanRealisasi();
+
+            // Cek jika ada error (misal DP belum diinput)
+            if (laporanError.classList.contains('hidden')) {
+                // Data tersedia, update dashboard
+                const { budget, realisasi } = currentMonthData;
+
+                const totalBudget = budget.reduce((acc, item) => acc + item.budget_amount, 0);
+                const totalRealisasi = Object.values(realisasi).reduce((acc, val) => acc + val, 0);
+                const sisaAnggaran = totalBudget - totalRealisasi;
+
+                dashboardTotalBudget.textContent = formatRupiah(totalBudget);
+                dashboardTotalRealisasi.textContent = formatRupiah(totalRealisasi);
+                dashboardSisaAnggaran.textContent = formatRupiah(sisaAnggaran);
+
+                renderDashboardCharts(budget, realisasi);
+            } else {
+                // Data DP tidak ada
+                dashboardTotalBudget.textContent = 'Rp 0';
+                dashboardTotalRealisasi.textContent = 'Rp 0';
+                dashboardSisaAnggaran.textContent = 'Rp 0';
+                showMessage('Info Dashboard', `Data Dana Pengelolaan untuk ${dashboardMonth.options[dashboardMonth.selectedIndex].text} ${tahun} belum diinput.`);
+                // Kosongkan chart
+                if (dashboardCharts.budgetRealisasi) dashboardCharts.budgetRealisasi.destroy();
+                if (dashboardCharts.variableCost) dashboardCharts.variableCost.destroy();
+            }
+        };
+        
+        loadDashboardButton.addEventListener('click', loadDashboardData);
+
+        const renderDashboardCharts = (budgetData, realisasiData) => {
+            // Chart 1: Budget vs Realisasi
+            const ctx1 = document.getElementById('budgetRealisasiChart').getContext('2d');
+            const labels = budgetData.map(item => item.item_name);
+            const budgetAmounts = budgetData.map(item => item.budget_amount);
+            const realisasiAmounts = budgetData.map(item => realisasiData[item.item_id] || 0);
+
+            if (dashboardCharts.budgetRealisasi) {
+                dashboardCharts.budgetRealisasi.destroy();
+            }
+            dashboardCharts.budgetRealisasi = new Chart(ctx1, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Budget',
+                            data: budgetAmounts,
+                            backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Realisasi',
+                            data: realisasiAmounts,
+                            backgroundColor: 'rgba(255, 99, 132, 0.6)',
+                            borderColor: 'rgba(255, 99, 132, 1)',
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    },
+                    responsive: true,
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.dataset.label}: ${formatRupiah(context.raw)}`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Chart 2: Komposisi Variable Cost (Pie Chart)
+            const ctx2 = document.getElementById('variableCostChart').getContext('2d');
+            const variableBudget = budgetData.filter(item => item.item_type === 'variable');
+            const variableLabels = variableBudget.map(item => item.item_name);
+            const variableAmounts = variableBudget.map(item => item.budget_amount);
+
+            if (dashboardCharts.variableCost) {
+                dashboardCharts.variableCost.destroy();
+            }
+            dashboardCharts.variableCost = new Chart(ctx2, {
+                type: 'doughnut',
+                data: {
+                    labels: variableLabels,
+                    datasets: [{
+                        label: 'Komposisi Budget Variable',
+                        data: variableAmounts,
+                        backgroundColor: [
+                            'rgba(255, 99, 132, 0.7)',
+                            'rgba(54, 162, 235, 0.7)',
+                            'rgba(255, 206, 86, 0.7)',
+                            'rgba(75, 192, 192, 0.7)',
+                            'rgba(153, 102, 255, 0.7)',
+                            'rgba(255, 159, 64, 0.7)'
+                        ],
+                    }]
+                },
+                 options: {
+                    responsive: true,
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.label}: ${formatRupiah(context.raw)}`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        };
+
+        // ===== 13. FUNGSI LAPORAN FILTER & EXPORT =====
+        
+        const populateFilterItems = () => {
+            filterItem.innerHTML = '<option value="all">Semua Item</option>';
+            masterItems.sort((a,b) => a.item_name.localeCompare(b.item_name)).forEach(item => {
+                const option = document.createElement('option');
+                option.value = item.id;
+                option.textContent = `${item.item_name} (${item.item_type})`;
+                filterItem.appendChild(option);
+            });
+        };
+
+        const loadFilteredLaporan = async () => {
+            showLoading('Memfilter laporan...');
+            laporanFilterTableBody.innerHTML = '';
+            
+            const startMonth = parseInt(filterStartMonth.value);
+            const startYear = parseInt(filterStartYear.value);
+            const endMonth = parseInt(filterEndMonth.value);
+            const endYear = parseInt(filterEndYear.value);
+            const itemId = filterItem.value;
+
+            // Buat tanggal awal dan akhir untuk query
+            const startDate = `${startYear}-${String(startMonth).padStart(2, '0')}-01`;
+            // Ambil hari terakhir dari endMonth
+            const lastDay = new Date(endYear, endMonth, 0).getDate();
+            const endDate = `${endYear}-${String(endMonth).padStart(2, '0')}-${lastDay}`;
+            
+            // 1. Ambil semua DP dalam rentang
+            const { data: dpData, error: dpError } = await db.from('dana_pengelolaan')
+                .select('*')
+                .gte('tahun', startYear)
+                .lte('tahun', endYear)
+                .gte('bulan', startMonth)
+                .lte('bulan', endMonth);
+                
+            // 2. Ambil semua Realisasi dalam rentang
+            const { data: realisasiData, error: realisasiError } = await db.from('realisasi')
+                .select('item_id, jumlah')
+                .gte('tanggal', startDate)
+                .lte('tanggal', endDate);
+
+            hideLoading();
+            if (dpError || realisasiError) {
+                showMessage('Error', 'Gagal memfilter laporan: ' + (dpError?.message || realisasiError?.message));
+                return;
+            }
+
+            if (dpData.length === 0) {
+                laporanFilterTableBody.innerHTML = '<tr><td colspan="5" class="px-6 py-4 text-center text-gray-500">Tidak ada data Dana Pengelolaan pada periode ini.</td></tr>';
+                laporanFilterTotalBudget.textContent = formatRupiah(0);
+                laporanFilterTotalRealisasi.textContent = formatRupiah(0);
+                laporanFilterTotalSisa.textContent = formatRupiah(0);
+                return;
+            }
+            
+            // 3. Inisialisasi summary object
+            const summary = {};
+            masterItems.forEach(item => {
+                summary[item.id] = {
+                    item_name: item.item_name,
+                    item_type: item.item_type,
+                    budget: 0,
+                    realisasi: 0
+                };
+            });
+            
+            // 4. Hitung Total Budget dari semua DP bulanan
+            dpData.forEach(dp => {
+                const monthlyBudget = calculateBudget(dp.total_dp);
+                monthlyBudget.forEach(budgetItem => {
+                    if (summary[budgetItem.item_id]) {
+                        summary[budgetItem.item_id].budget += budgetItem.budget_amount;
+                    }
+                });
+            });
+            
+            // 5. Hitung Total Realisasi
+            realisasiData.forEach(realisasi => {
+                if (summary[realisasi.item_id]) {
+                    summary[realisasi.item_id].realisasi += realisasi.jumlah;
+                }
+            });
+
+            // 6. Filter by item jika dipilih
+            let itemsToRender = Object.values(summary);
+            if (itemId !== 'all') {
+                itemsToRender = itemsToRender.filter(item => item.item_id === itemId); // Perlu perbaikan, item_id tidak ada di level ini
+                // Perbaikan: Filter berdasarkan ID
+                const filteredSummary = {};
+                filteredSummary[itemId] = summary[itemId];
+                itemsToRender = Object.values(filteredSummary);
+            }
+            
+            let totalBudget = 0;
+            let totalRealisasi = 0;
+            let totalSisa = 0;
+
+            // 7. Render Tabel
+            itemsToRender.sort((a,b) => a.item_name.localeCompare(b.item_name)).forEach(item => {
+                const sisa = item.budget - item.realisasi;
+                totalBudget += item.budget;
+                totalRealisasi += item.realisasi;
+                totalSisa += sisa;
+                
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium ${item.item_type === 'fixed' ? 'text-gray-900' : 'text-gray-700'}">${item.item_type === 'fixed' ? 'Fixed Cost' : 'Variable Cost'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${item.item_name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${formatRupiah(item.budget)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${formatRupiah(item.realisasi)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm ${sisa < 0 ? 'text-red-600' : 'text-green-600'} font-medium">${formatRupiah(sisa)}</td>
+                `;
+                laporanFilterTableBody.appendChild(tr);
+            });
+            
+            laporanFilterTotalBudget.textContent = formatRupiah(totalBudget);
+            laporanFilterTotalRealisasi.textContent = formatRupiah(totalRealisasi);
+            laporanFilterTotalSisa.textContent = formatRupiah(totalSisa);
+
+            // Update judul laporan
+            laporanFilterTitle.textContent = `Laporan Agregat dari ${filterStartMonth.options[filterStartMonth.selectedIndex].text} ${startYear} s/d ${filterEndMonth.options[filterEndMonth.selectedIndex].text} ${endYear}`;
+        };
+
+        loadFilterLaporanButton.addEventListener('click', loadFilteredLaporan);
+
+        // --- Export Laporan Realisasi (Filter Tanggal) ---
+        exportPdfButton.addEventListener('click', () => {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            doc.text(laporanFilterTitle.textContent, 14, 15);
+            
+            doc.autoTable({
+                html: '#laporanFilterTable', // Target: Tabel Laporan Filter
+                startY: 20,
+                theme: 'grid',
+                headStyles: { fillColor: [22, 160, 133] },
+                footStyles: { fillColor: [230, 230, 230], textColor: [0,0,0], fontStyle: 'bold' }
+            });
+            
+            doc.save(`laporan-realisasi-${getTodayDate()}.pdf`);
+        });
+
+        // Export CSV
+        exportCsvButton.addEventListener('click', () => {
+            const table = document.getElementById('laporanFilterTable'); // Target: Tabel Laporan Filter
+            const data = [];
+            
+            // Header
+            const headers = [];
+            table.querySelectorAll('thead th').forEach(th => headers.push(th.textContent.trim()));
+            data.push(headers);
+            
+            // Body
+            table.querySelectorAll('tbody tr').forEach(tr => {
+                const row = [];
+                tr.querySelectorAll('td').forEach(td => row.push(td.textContent.trim()));
+                data.push(row);
+            });
+
+            // Footer
+            const footers = [];
+            table.querySelectorAll('tfoot tr').forEach(tr => {
+                const row = [];
+                tr.querySelectorAll('td').forEach(td => row.push(td.textContent.trim()));
+                data.push(row);
+            });
+
+            const csv = Papa.unparse(data);
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `laporan-realisasi-${getTodayDate()}.csv`;
+            link.click();
+        });
+
+        // Print
+        printButton.addEventListener('click', () => {
+            // Ini akan print #printableArea (Laporan Filter), karena itu ID defaultnya
+            // Kita set #printableAreaBvR ke ID sementara agar tidak ikut ter-print
+            const bvrPrintable = document.getElementById('printableAreaBvR');
+            const defaultPrintable = document.getElementById('printableArea');
+            bvrPrintable.id = 'printableAreaBvR_temp';
+            defaultPrintable.id = 'printableArea';
+            
+            window.print();
+            
+            // Kembalikan ID
+            bvrPrintable.id = 'printableAreaBvR';
+        });
+
+        
+        // --- Export Laporan Budget vs Realisasi (Bulanan) ---
+        
+        exportPdfBvR.addEventListener('click', () => {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            const title = `Laporan Budget vs Realisasi - ${laporanMonth.options[laporanMonth.selectedIndex].text} ${laporanYear.value}`;
+            doc.text(title, 14, 15);
+            doc.text(`Total DP: ${laporanTotalDp.textContent}`, 14, 22);
+            
+            doc.autoTable({
+                html: '#laporanBvRTable', // Target: Tabel Laporan BvR
+                startY: 28,
+                theme: 'grid',
+                headStyles: { fillColor: [22, 160, 133] },
+                footStyles: { fillColor: [230, 230, 230], textColor: [0,0,0], fontStyle: 'bold' },
+                didParseCell: function(data) {
+                    // Sembunyikan kolom "Aksi" (index 5)
+                    if (data.column.index === 5) {
+                        data.cell.styles.hidden = true;
+                    }
+                }
+            });
+            
+            doc.save(`laporan-bvr-${laporanYear.value}-${laporanMonth.value}.pdf`);
+        });
+
+        exportCsvBvR.addEventListener('click', () => {
+            const table = document.getElementById('laporanBvRTable'); // Target: Tabel Laporan BvR
+            const data = [];
+            
+            // Header
+            const headers = [];
+            table.querySelectorAll('thead th').forEach((th, index) => {
+                if (index !== 5) { // Jangan ambil kolom "Aksi"
+                    headers.push(th.textContent.trim());
+                }
+            });
+            data.push(headers);
+            
+            // Body
+            table.querySelectorAll('tbody tr').forEach(tr => {
+                const row = [];
+                tr.querySelectorAll('td').forEach((td, index) => {
+                    if (index !== 5) { // Jangan ambil kolom "Aksi"
+                        row.push(td.textContent.trim());
+                    }
+                });
+                data.push(row);
+            });
+
+            // Footer
+            const footers = [];
+            table.querySelectorAll('tfoot tr').forEach(tr => {
+                const row = [];
+                tr.querySelectorAll('td').forEach((td, index) => {
+                    if (index !== 5) { // Jangan ambil kolom "Aksi"
+                         row.push(td.textContent.trim());
+                    }
+                });
+                data.push(row);
+            });
+
+            const csv = Papa.unparse(data);
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `laporan-bvr-${laporanYear.value}-${laporanMonth.value}.csv`;
+            link.click();
+        });
+
+            printBvR.addEventListener('click', () => {
+            // Tukar ID sementara agar CSS @print menargetkan area yang benar
+            const defaultPrintable = document.getElementById('printableArea');
+            const bvrPrintable = document.getElementById('printableAreaBvR');
+            
+            defaultPrintable.id = 'printableArea_temp'; // Hapus ID sementara
+            bvrPrintable.id = 'printableArea'; // Set sebagai target print
+            
+            window.print();
+            
+            // Kembalikan ID setelah print
+            bvrPrintable.id = 'printableAreaBvR';
+            defaultPrintable.id = 'printableArea';
+        });
+
+
+        // ===== 14. FUNGSI AKUMULASI SALDO DP =====
+
+        const loadSaldoDpView = async () => {
+            showLoading('Memuat data saldo...');
+            saldoDpTableBody.innerHTML = '<tr><td colspan="5" class="px-6 py-4 text-center">Memuat...</td></tr>';
+            saldoTanggal.value = getTodayDate(); // Set tanggal default di form
+            
+            const today = new Date();
+            const currentMonth = today.getMonth() + 1; // 1-12
+            const currentYear = today.getFullYear();
+            const firstDayCurrentMonth = new Date(currentYear, today.getMonth(), 1).toISOString();
+
+            // --- Ambil 3 set data secara paralel ---
+            const [ledgerResult, dpResult, realisasiResult] = await Promise.all([
+                // 1. Ambil data ledger (kas riil untuk tabel dan Saldo Saat Ini)
+                db.from('saldo_dp_ledger').select('*').order('tanggal', { ascending: false }),
+                
+                // 2. Ambil data DP historis (untuk Saldo Awal Budget)
+                db.from('dana_pengelolaan').select('*')
+                    .or(`tahun.lt.${currentYear},and(tahun.eq.${currentYear},bulan.lt.${currentMonth})`), // Semua bulan SEBELUM bulan ini
+                
+                // 3. Ambil data Realisasi historis (untuk Saldo Awal Budget)
+                db.from('realisasi').select('jumlah').lt('tanggal', firstDayCurrentMonth) // Semua tanggal SEBELUM hari pertama bulan ini
+            ]);
+                
+            hideLoading();
+
+            // --- Handle Error Gabungan ---
+            const error = ledgerResult.error || dpResult.error || realisasiResult.error;
+            if (error) {
+                showMessage('Error', 'Gagal mengambil data saldo: ' + (error.message));
+                saldoDpTableBody.innerHTML = '<tr><td colspan="5" class="px-6 py-4 text-center text-red-500">Gagal memuat.</td></tr>';
+                return;
+            }
+            
+            const ledgerData = ledgerResult.data;
+            const dpData = dpResult.data;
+            const realisasiData = realisasiResult.data;
+
+            // --- Bagian 1: Proses Ledger Kas Riil (Tabel & Saldo Saat Ini) ---
+            let totalSaldo = 0;
+            saldoDpTableBody.innerHTML = '';
+            if (ledgerData.length === 0) {
+                 saldoDpTableBody.innerHTML = '<tr><td colspan="5" class="px-6 py-4 text-center text-gray-500">Belum ada transaksi kas.</td></tr>';
+            }
+            
+            ledgerData.forEach(trx => {
+                let jumlahMutasi = 0;
+                if (trx.tipe === 'masuk') {
+                    jumlahMutasi = trx.jumlah;
+                    totalSaldo += trx.jumlah;
+                } else {
+                    jumlahMutasi = -trx.jumlah;
+                    totalSaldo -= trx.jumlah;
+                }
+
+                // Render baris tabel
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${trx.tanggal}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${trx.sumber}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${trx.keterangan || '-'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium ${trx.tipe === 'masuk' ? 'text-green-600' : 'text-red-600'}">
+                        ${trx.tipe === 'masuk' ? '+' : '-'} ${formatRupiah(trx.jumlah)}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium no-print">
+                        <button data-id="${trx.id}" class="delete-saldo-btn text-red-600 hover:text-red-900"><i class="fas fa-trash"></i></button>
+                    </td>
+                `;
+                saldoDpTableBody.appendChild(tr);
+            });
+            
+            // Update card "Total Saldo Saat Ini" (Kas Riil)
+            saldoSaatIni.textContent = formatRupiah(totalSaldo);
+            
+
+            // --- Bagian 2: Proses Saldo Awal Bulan Ini (Sisa Budget Historis) ---
+            let totalHistoricalBudget = 0;
+            dpData.forEach(dp => {
+                const monthlyBudget = calculateBudget(dp.total_dp);
+                totalHistoricalBudget += monthlyBudget.reduce((acc, item) => acc + item.budget_amount, 0);
+            });
+
+            const totalHistoricalRealisasi = realisasiData.reduce((acc, item) => acc + item.jumlah, 0);
+            
+            const saldoAwalBudget = totalHistoricalBudget - totalHistoricalRealisasi;
+            
+            // Update card "Saldo Awal Bulan Ini" (Sisa Budget)
+            saldoBulanLalu.textContent = formatRupiah(saldoAwalBudget);
+            // Update teks deskripsinya
+            document.querySelector('#saldoBulanLalu + p').textContent = 'Total Sisa Budget Agregat s.d. akhir bulan lalu.';
+            
+            // Add listener hapus
+            document.querySelectorAll('.delete-saldo-btn').forEach(btn => {
+                btn.addEventListener('click', handleDeleteSaldo);
+            });
+        };
+
+        saldoDpForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            showLoading('Menyimpan transaksi...');
+            
+            const saldoData = {
+                tanggal: saldoTanggal.value,
+                sumber: saldoSumber.value,
+                tipe: saldoTipe.value,
+                jumlah: parseFloat(saldoJumlah.value),
+                keterangan: saldoKeterangan.value
+            };
+            
+            const { error } = await db.from('saldo_dp_ledger').insert(saldoData);
+            hideLoading();
+            
+            if (error) {
+                showMessage('Error', 'Gagal menyimpan transaksi: ' + error.message);
+            } else {
+                showMessage('Sukses', 'Transaksi saldo berhasil disimpan.');
+                saldoDpForm.reset();
+                saldoTanggal.value = getTodayDate();
+                loadSaldoDpView(); // Refresh data
+            }
+        });
+        
+        const handleDeleteSaldo = async (e) => {
+             const id = e.currentTarget.dataset.id;
+             
+             deleteConfirmTitle.textContent = 'Konfirmasi Hapus Transaksi';
+             deleteConfirmText.textContent = 'Anda yakin ingin menghapus data transaksi saldo ini?';
+             deleteConfirmButton.textContent = 'Ya, Hapus Transaksi';
+             
+             // Set action callback
+             deleteAction = async () => {
+                showLoading('Menghapus...');
+                const { error } = await db.from('saldo_dp_ledger').delete().eq('id', id);
+                hideLoading();
+                
+                if (error) {
+                    showMessage('Error', 'Gagal menghapus: ' + error.message);
+                } else {
+                    showMessage('Sukses', 'Data transaksi dihapus.');
+                    loadSaldoDpView(); // Refresh laporan
+                }
+             };
+             
+             // Tampilkan modal
+             deleteConfirmModal.classList.remove('hidden');
+        };
+
+        // ===== 15. INISIALISASI APLIKASI =====
+        const initApp = () => {
+            // Isi pilihan bulan & tahun di semua filter
+            const allMonthSelects = [inputDpMonth, laporanMonth, dashboardMonth, filterStartMonth, filterEndMonth];
+            const allYearSelects = [inputDpYear, laporanYear, dashboardYear, filterStartYear, filterEndYear];
+            
+            allMonthSelects.forEach(populateMonthOptions);
+            allYearSelects.forEach(populateYearOptions);
+            
+            // Set tanggal default untuk filter laporan (Laporan Agregat)
+            const today = new Date();
+            const currentMonth = today.getMonth() + 1;
+            const currentYear = today.getFullYear();
+            
+            filterStartMonth.value = 1; // Default: Januari
+            filterStartYear.value = currentYear;
+            filterEndMonth.value = currentMonth;
+            filterEndYear.value = currentYear;
+            
+            // Setup listener auth
+            setupAuthListeners();
+            
+            // Setup listener modal konfirmasi Hapus (GLOBAL)
+            deleteConfirmCancel.addEventListener('click', () => {
+                deleteConfirmModal.classList.add('hidden');
+                deleteAction = null; // Hapus callback
+            });
+            
+            deleteConfirmButton.addEventListener('click', () => {
+                if (typeof deleteAction === 'function') {
+                    deleteConfirmModal.classList.add('hidden');
+                    deleteAction(); // Jalankan callback yang tersimpan
+                    deleteAction = null; // Hapus callback
+                }
+            });
+            
+            // Cek status auth
+            checkAuthState();
+        };
+
+        // Jalankan aplikasi
+        initApp();
+
+    </script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
